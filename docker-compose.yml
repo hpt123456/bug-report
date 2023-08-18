@@ -1,0 +1,53 @@
+version: '3.8'
+
+services: 
+  app:
+    container_name: ${DOCKER_PREFIX}dev_app
+    build: 
+      context: .
+      dockerfile: ./docker/development/8.1/Dockerfile
+    restart: unless-stopped
+    volumes: 
+      - ./:/var/www
+      - ./docker/development/8.1/php/local.ini:/usr/local/etc/php/conf.d/local.ini  
+    networks: 
+      - bug-report-network
+
+  nginx:
+    container_name: ${DOCKER_PREFIX}dev_nginx
+    image: nginx:alpine
+    ports:
+      - 80:80
+    volumes: 
+      - ./:/var/www
+      - ./docker/development/8.1/nginx/conf.d/app.conf:/etc/nginx/conf.d/default.conf
+    networks: 
+      - bug-report-network 
+    depends_on: 
+      - app     
+      - database
+    restart: unless-stopped   
+
+  database:
+      image: 'mariadb:10'
+      container_name: ${DOCKER_PREFIX}dev_mariadb
+      ports:
+          - '${FORWARD_DB_PORT:-3306}:3306'
+      environment:
+          MYSQL_DATABASE: '${DB_DATABASE}'
+          MYSQL_USER: '${DB_USERNAME}'
+          MYSQL_PASSWORD: '${DB_PASSWORD}'
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+      volumes:
+          - bug-report-database:/var/lib/mysql
+      networks:
+          - bug-report-network
+      restart: unless-stopped 
+
+networks: 
+  bug-report-network:
+    driver: bridge
+    
+volumes:
+  bug-report-database:
+    driver: local
